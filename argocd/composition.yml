@@ -1,0 +1,158 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: staticwebsite.web.example.org
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+  labels:
+    provider: aws
+spec:
+  compositeTypeRef:
+    apiVersion: web.example.org/v1alpha1
+    kind: XStaticWebsite
+  mode: Pipeline
+  pipeline:
+    - step: patch-and-transform
+      functionRef:
+        name: function-patch-and-transform
+      input:
+        apiVersion: pt.fn.crossplane.io/v1beta1
+        kind: Resources
+        patchSets:
+          - name: common
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.region
+                toFieldPath: spec.forProvider.region
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.bucketName
+                toFieldPath: spec.forProvider.bucketRef.name
+        resources:
+          - name: bucket
+            base:
+              apiVersion: s3.aws.upbound.io/v1beta1
+              kind: Bucket
+              spec:
+                forProvider:
+                  region: us-east-2
+                  tags: {}
+                providerConfigRef:
+                  name: default
+            patches:
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.region
+                toFieldPath: spec.forProvider.region
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.bucketName
+                toFieldPath: metadata.name
+              - type: FromCompositeFieldPath
+                fromFieldPath: spec.parameters.tags
+                toFieldPath: spec.forProvider.tags
+
+          - name: ownership-controls
+            base:
+              apiVersion: s3.aws.upbound.io/v1beta1
+              kind: BucketOwnershipControls
+              spec:
+                forProvider:
+                  region: us-east-2
+                  bucketRef:
+                    name: ""
+                  rule:
+                    - objectOwnership: BucketOwnerPreferred
+                providerConfigRef:
+                  name: default
+            patches:
+              - type: PatchSet
+                patchSetName: common
+
+          - name: public-access-block
+            base:
+              apiVersion: s3.aws.upbound.io/v1beta1
+              kind: BucketPublicAccessBlock
+              spec:
+                forProvider:
+                  region: us-east-2
+                  bucketRef:
+                    name: ""
+                  blockPublicAcls: false
+                  blockPublicPolicy: false
+                  ignorePublicAcls: false
+                  restrictPublicBuckets: false
+                providerConfigRef:
+                  name: default
+            patches:
+              - type: PatchSet
+                patchSetName: common
+
+          - name: website-config
+            base:
+              apiVersion: s3.aws.upbound.io/v1beta1
+              kind: BucketWebsiteConfiguration
+              spec:
+                forProvider:
+                  region: us-east-2
+                  bucketRef:
+                    name: ""
+                  indexDocument:
+                    - suffix: index.html
+                  errorDocument:
+                    - key: index.html
+                providerConfigRef:
+                  name: default
+            patches:
+              - type: PatchSet
+                patchSetName: common
+
+          - name: bucket-policy
+            base:
+              apiVersion: s3.aws.upbound.io/v1beta1
+              kind: BucketPolicy
+              spec:
+                forProvider:
+                  region: us-east-2
+                  bucketRef:
+                    name: ""
+                  policy: ""
+                providerConfigRef:
+                  name: default
+            patches:
+              - type: PatchSet
+                patchSetName: common
+              - type: CombineFromComposite
+                combine:
+                  variables:
+                    - fromFieldPath: spec.parameters.bucketName
+                  strategy: string
+                  string:
+                    fmt: |
+                      {
+                        "Version": "2012-10-17",
+                        "Statement": [
+                          {
+                            "Sid": "PublicReadGetObject",
+                            "Effect": "Allow",
+                            "Principal": "*",
+                            "Action": "s3:GetObject",
+                            "Resource": "arn:aws:s3:::%s/*"
+                          }
+                        ]
+                      }
+                toFieldPath: spec.forProvider.policy
+
+          - name: bucket-versioning
+            base:
+              apiVersion: s3.aws.upbound.io/v1beta1
+              kind: BucketVersioning
+              spec:
+                forProvider:
+                  region: us-east-2
+                  bucketRef:
+                    name: ""
+                  versioningConfiguration:
+                    - status: Enabled
+                providerConfigRef:
+                  name: default
+            patches:
+              - type: PatchSet
+                patchSetName: common

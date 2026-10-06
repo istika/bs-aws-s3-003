@@ -1,0 +1,22 @@
+apiVersion: web.example.org/v1alpha1
+kind: StaticWebsite
+metadata:
+  name: bs-aws-s3-003
+  namespace: default
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  parameters:
+    region: us-east-2
+    bucketName: bs-aws-s3-003
+    versioningEnabled: true
+    tags:
+      environment: prod
+      team: team-a
+      owner: platform-team
+      managed-by: crossplane
+      project: demo
+      cost-center: cc-1234
+      cd: argocd
+  compositionRef:
+    name: staticwebsite.web.example.org

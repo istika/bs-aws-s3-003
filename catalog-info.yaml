@@ -1,0 +1,15 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: bs-aws-s3-003
+  description: AWS s3 buket - named bs-aws-s3-003
+  tags:
+    - aws
+    - s3
+  annotations:
+    github.com/project-slug: istika/bs-aws-s3-003
+    backstage.io/techdocs-ref: dir:.
+spec:
+  type: service
+  owner: development
+  lifecycle: experimental

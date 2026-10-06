@@ -1,0 +1,54 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xstaticwebsites.web.example.org
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  group: web.example.org
+  names:
+    kind: XStaticWebsite
+    plural: xstaticwebsites
+  claimNames:
+    kind: StaticWebsite
+    plural: staticwebsites
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                parameters:
+                  type: object
+                  properties:
+                    region:
+                      type: string
+                      description: AWS region for the S3 bucket.
+                    bucketName:
+                      type: string
+                      description: Name of the S3 bucket.
+                    versioningEnabled:
+                      type: boolean
+                      description: Enable bucket versioning.
+                      default: true
+                    tags:
+                      type: object
+                      additionalProperties:
+                        type: string
+                      description: Tags to apply to the bucket.
+                  required:
+                    - region
+                    - bucketName
+              required:
+                - parameters
+            status:
+              type: object
+              properties:
+                websiteUrl:
+                  type: string
+                  description: The S3 website endpoint URL.
